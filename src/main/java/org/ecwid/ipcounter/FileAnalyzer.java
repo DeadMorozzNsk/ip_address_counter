@@ -1,25 +1,11 @@
 package org.ecwid.ipcounter;
 
-import java.io.*;
-import java.nio.ByteBuffer;
-import java.util.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Random;
 
-
-//    private static int convertByteArrayToIntValue(byte[] arr, int lastIndex) {
-//        int result = 0;
-//        int iter = 0;
-//        for (int i = lastIndex; i >= 0; i--) {
-//            result = (int) Math.pow(i, lastIndex);
-//        }
-//        if (lastIndex == 0) return arr[lastIndex];
-//        else if (lastIndex == 1) {
-//            result = arr[0] * 10 + arr[1];
-//        } else if (lastIndex == 2) {
-//            result = arr[0] * 100 + arr[1] * 10 + arr[2];
-//        }
-//        return result;
-//    }
-//}
 public final class FileAnalyzer {
     private static final long MEGABYTE = 1024L * 1024L;
     private static final long KILOBYTE = 1024L;
