@@ -12,29 +12,9 @@ import static org.ecwid.ipcounter.FileAnalyzer.*;
 
 public class AppMain {
 
-    static void updateProgress(double progressPercentage) {
-        final int width = 50; // progress bar width in chars
 
-        System.out.print("\r[");
-        int i = 0;
-        for (; i <= (int) (progressPercentage * width); i++) {
-            System.out.print("\u2588");
-        }
-        for (; i < width; i++) {
-            System.out.print(" ");
-        }
-        System.out.print("]");
-    }
 
     public static void main(String[] args) {
-        /*try {
-            for (double progressPercentage = 0.0; progressPercentage < 1.0; progressPercentage += 0.01) {
-                updateProgress(progressPercentage);
-                Thread.sleep(20);
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }*/
         String path = "src\\main\\java\\org\\ecwid\\ipcounter\\files\\testSet.txt";
 
         long t = 0;
@@ -44,7 +24,7 @@ public class AppMain {
                 createTestDataSet(10000000, path);  /* create payload file if not exists */
             }
             t = System.currentTimeMillis();  /* start time measuring */
-            countIpAddressesFromFile(path);
+            countIpAddressesFromFile(path, file.length());
             //naiveCountIpAddressesFromFile(path);
         } catch (IOException e) {
             e.printStackTrace();
@@ -55,7 +35,7 @@ public class AppMain {
         long sec = msec/1000;
         long mins = sec/60;
         System.out.println("Time passed = " + msec + " ms");
-        System.out.println("Time passed = " + mins );
+        System.out.println("Time passed = " + mins + " min. " + (sec - mins * 60) + " sec.");
         Runtime runtime = Runtime.getRuntime();
         long memory = runtime.totalMemory() - runtime.freeMemory();
         System.out.println("Used memory in kilobytes: " + bytesToKilobytes(memory));
@@ -63,7 +43,8 @@ public class AppMain {
     }
 
     /**
-     * простейший путь подсчета количества уникальных строк
+     * простейший путь подсчета количества уникальных строк.
+     * использовался для проверки точности подсчета.
      * @param path путь к файлу
      * @throws IOException ошибки при чтении/получению доступа к файлу
      */

@@ -62,16 +62,34 @@ public final class FileAnalyzer {
     }
 
     /**
+     * отображает в консоли прогресс выполнения задачи в процентах.
+     * @param progressPercentage процент для отображения в размере от 0 до 1
+     */
+    static void updateProgress(double progressPercentage) {
+        final int width = 50; // progress bar width in chars
+
+        System.out.print("\r[");
+        int i = 0;
+        for (; i <= (int) (progressPercentage * width); i++) {
+            System.out.print("\u2588");
+        }
+        for (; i < width; i++) {
+            System.out.print(" ");
+        }
+        System.out.print(String.format("] %s", Math.round(progressPercentage*100)) + "%");
+    }
+
+    /**
      * подсчитывает приблизительное количтество уникальных ip-адресов в файле
      * @param filePath путь к файлу
      * @throws IOException ошибка ввода/вывода
      */
-    public static void countIpAddressesFromFile(String filePath) throws IOException {
+    public static void countIpAddressesFromFile(String filePath, long fileLength) throws IOException {
         /* ИТАК, хитрый план:
         * читаем байтами по 50-100 мб
         * байт символа \n = 10  для  сплита */
 
-        int rearingBlockSize = 50; /* размер считываемого блока в мегабайтах */
+        int readingBlockSize = 50; /* размер считываемого блока в мегабайтах */
 
         /* массив для записи статистики использования
         * каждой из 4 честей адреса */
@@ -86,8 +104,11 @@ public final class FileAnalyzer {
         stats[2] = partThree;
         stats[3] = partFour;
 
+        double progress = 0;
+        updateProgress(progress);
+
         try (FileInputStream in = new FileInputStream(filePath)) {
-            byte[] arr = new byte[rearingBlockSize * 1024 * 1024];
+            byte[] arr = new byte[readingBlockSize * 1024 * 1024];
             byte[] tmp = new byte[16];
             int tmpIndex = 0;
             int x;
@@ -116,6 +137,8 @@ public final class FileAnalyzer {
                         }
                     }
                 }
+                progress += (double) x/fileLength;
+                updateProgress(progress);
             }
             int uniques = 0;
             for (int i = 0; i < 256; i++) {
@@ -126,7 +149,7 @@ public final class FileAnalyzer {
                 uniques+= min;
             }
 
-            System.out.println("strings count = " + stringsCount);
+            System.out.println("\nstrings count = " + stringsCount);
             System.out.println("Valid strings count = " + validStringsCount);
             System.out.println("Unique addresses approx. = " + uniques);
         }
