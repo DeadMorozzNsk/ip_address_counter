@@ -1,14 +1,21 @@
 package org.ecwid.ipcounter;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
+
+/**
+ * Класс для процессинга подсчета уникальных ip-адресов в текстовом файле
+ */
 
 public class FileAnalyzer {
     private String filePath;
@@ -34,7 +41,7 @@ public class FileAnalyzer {
     }
 
     /**
-     * генерирует случайное значние
+     * генерирует случайное значение.
      *
      * @param random генератор псевдослучайных чисел
      * @return число в диапазоне 0..255 включительно
@@ -45,7 +52,7 @@ public class FileAnalyzer {
     }
 
     /**
-     * функция для создания тестового набора данных
+     * создает тестовый набор данных.
      *
      * @param count    количество записей в создаваемом наборе данных
      * @param filePath путь к файлу набора данных
@@ -185,6 +192,38 @@ public class FileAnalyzer {
 
         System.out.println("Strings count = " + stringsCount);
         System.out.println("Unique addresses approx. = " + uniques);
+    }
+
+    /**
+     * Подсчитывает количество уникальных строк в текстовом файле с помощью внешней сортировки
+     * и последующего обхода всего файла.
+     * @param tempDirPath путь к директории, куда будут записываться временные файлы
+     * @param targetFile путь к файлу-результату сортировки
+     * @throws IOException ошибка ввода/вывода
+     */
+    public void countByExternalSort(String tempDirPath, String targetFile) throws IOException {
+        ExternalSort externalSort = new ExternalSort(tempDirPath);
+        externalSort.setMaximumPartSize(75);
+        try (FileInputStream in = new FileInputStream(getFilePath());
+             FileOutputStream out = new FileOutputStream(targetFile)) {
+            externalSort.splitParts(in);
+            externalSort.mergeParts(out);
+
+            AtomicReference<String> storedLine = new AtomicReference<>();
+            AtomicLong ipAddressCount = new AtomicLong();
+            Files.lines(Paths.get(targetFile))
+                    .forEach(line -> {
+                        if (ipAddressCount.get() == 0) {
+                            storedLine.set(line);
+                            ipAddressCount.getAndIncrement();
+                        }
+                        if (!line.equals(storedLine.get())) {
+                            ipAddressCount.getAndIncrement();
+                            storedLine.set(line);
+                        }
+                    });
+            System.out.println("Unique ip address count = " + ipAddressCount.get());
+        }
     }
 
 }

@@ -12,6 +12,9 @@ public class AppMain {
 
     public static void main(String[] args) {
         String path = "src\\main\\java\\org\\ecwid\\ipcounter\\files\\testSet.txt";
+        String tempDirPath = "src\\main\\java\\org\\ecwid\\ipcounter\\files\\temp\\";
+        String targetFilePath = "src\\main\\java\\org\\ecwid\\ipcounter\\files\\temp\\result.txt";
+
         FileAnalyzer fileAnalyzer = new FileAnalyzer(path);
         long t = 0;
         try {
@@ -20,7 +23,8 @@ public class AppMain {
                 fileAnalyzer.createTestDataSet(10000000, path);  /* create payload file if not exists */
             }
             t = System.currentTimeMillis();
-            fileAnalyzer.countIpAddressesFromFile();
+            //fileAnalyzer.countIpAddressesFromFile();
+            fileAnalyzer.countByExternalSort(tempDirPath, targetFilePath);
             //fileAnalyzer.countApproxUniqueAddresses();
             //naiveCountIpAddressesFromFile(path);
         } catch (IOException e) {
@@ -30,7 +34,6 @@ public class AppMain {
         long msec = (System.currentTimeMillis() - t);
         long sec = msec / 1000;
         long mins = sec / 60;
-        System.out.println("Time passed = " + msec + " ms");
         System.out.println("Time passed = " + mins + " min. " + (sec - mins * 60) + " sec.");
         Runtime runtime = Runtime.getRuntime();
         long memory = runtime.totalMemory() - runtime.freeMemory();
