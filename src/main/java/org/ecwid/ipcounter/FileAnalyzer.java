@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.LongStream;
@@ -98,12 +97,15 @@ public class FileAnalyzer {
         System.out.print(String.format("] %s", Math.round(progressPercentage * 100)) + "%");
     }
 
-
+    /**
+     * подсчитывает количество уникальных значений в файле.
+     *
+     * @throws IOException ошибка ввода/вывода
+     */
     public void countIpAddressesFromFile() throws IOException {
         long ipAddressCount =
                 Files.lines(Paths.get(getFilePath()))
-                        .parallel()
-                        .flatMapToLong(line -> LongStream.of(ipHashCode(line)))
+                        .flatMapToLong(line -> LongStream.of(getIpHashCode(line)))
 //                        .flatMap(line -> Arrays.stream(line.split("\\n")))
                         .distinct()
                         .count();
@@ -111,13 +113,17 @@ public class FileAnalyzer {
         System.out.println("ipAddressCount = " + ipAddressCount);
     }
 
-    private long ipHashCode(String ipAddress) {
+    /**
+     * вычисляет уникальный хеш для строкового представления ip-адреса.
+     *
+     * @param ipAddress строковое представление ip-адреса
+     * @return хеш в формате long
+     */
+    private long getIpHashCode(String ipAddress) {
         long result = -1;
-        if (addressIsValid(ipAddress)) {
-            String[] parts = ipAddress.split("\\.");
-            for (int j = 0; j < 4; j++) {
-                result += Long.parseLong(parts[j]) * Math.pow(10, 3 * (3 - j));
-            }
+        String[] parts = ipAddress.split("\\.");
+        for (int j = 0; j < 4; j++) {
+            result += Long.parseLong(parts[j]) * Math.pow(10, 3 * (3 - j));
         }
         return result;
     }
