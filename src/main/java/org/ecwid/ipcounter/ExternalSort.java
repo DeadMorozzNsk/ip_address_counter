@@ -2,6 +2,8 @@ package org.ecwid.ipcounter;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 /**
@@ -9,7 +11,7 @@ import java.util.*;
  */
 
 public class ExternalSort {
-    private final Comparator<String> strCompr = Comparator.naturalOrder();
+    private final Comparator<String> stringCpr = Comparator.naturalOrder();
     private final String tempDir;
     private final List<File> outputFiles = new ArrayList<>();
     private int maxPartSize = 100 * 1024 * 1024;
@@ -28,6 +30,7 @@ public class ExternalSort {
      * @param mbSize размер файла в <b>мегабайтах</b>
      */
     public void setMaximumPartSize(int mbSize) {
+        if (mbSize > 100 || mbSize < 0) mbSize = 100;
         this.maxPartSize = mbSize * 1024 * 1024;
     }
 
@@ -40,6 +43,7 @@ public class ExternalSort {
     public void splitParts(InputStream inputStream) throws IOException {
         outputFiles.clear();
         List<String> lines = new ArrayList<>();
+        ExecutorService executorService = Executors.newFixedThreadPool(15, Thread::new);
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
             String line;
             int currentPartSize = 0;
@@ -48,11 +52,21 @@ public class ExternalSort {
                 currentPartSize += line.length() + 1;
                 if (currentPartSize >= maxPartSize) {
                     currentPartSize = 0;
-                    sortListAndSendToOutput(lines);
+                    ArrayList<String> threadList = new ArrayList<>(lines);
+                    lines.clear();
+                    executorService.execute(
+                            () -> {
+                                try {
+                                    sortListAndSendToOutput(threadList, Thread.currentThread().getName());
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            });
                 }
             }
-            sortListAndSendToOutput(lines);
+            sortListAndSendToOutput(lines, "final");
         }
+        executorService.shutdown();
     }
 
     /**
@@ -61,9 +75,10 @@ public class ExternalSort {
      * @param stringList список строк
      * @throws IOException ошибка ввода/вывода
      */
-    private void sortListAndSendToOutput(List<String> stringList) throws IOException {
-        stringList.sort(strCompr);
-        File file = new File(tempDir + "temp" + System.currentTimeMillis());
+    private void sortListAndSendToOutput(List<String> stringList, String id) throws IOException {
+        stringList.sort(stringCpr);
+        String fileName = tempDir + "temp" + System.currentTimeMillis() + "_" + id;
+        File file = new File(fileName);
         outputFiles.add(file);
         writeToFile(stringList, new FileOutputStream(file));
         stringList.clear();
@@ -93,6 +108,35 @@ public class ExternalSort {
      * @throws IOException ошибка ввода/вывода
      */
     public void mergeParts(OutputStream out) throws IOException {
+        var ref = new Object() {
+            private long counter = 0L;
+
+            public long getCounter() {
+                return counter;
+            }
+
+            public void setCounter(long counter) {
+                this.counter = counter;
+            }
+
+            public void incCounter() {
+                this.counter++;
+            }
+        };
+        synchronized (ref) {
+            Thread progressMonitor = new Thread(() -> {
+                while (true) {
+                    System.out.println("Strings processed = " + ref.getCounter());
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            progressMonitor.setDaemon(true);
+            progressMonitor.start();
+        }
         Map<StringWrapper, BufferedReader> map = new HashMap<>();
         List<BufferedReader> readers = new ArrayList<>();
         ComparatorDelegate delegate = new ComparatorDelegate();
@@ -109,8 +153,8 @@ public class ExternalSort {
             while (map.size() > 0) {
                 sorted.sort(delegate);
                 StringWrapper line = sorted.remove(0);
-                writer.write(line.string);
-                writer.write("\n");
+                writer.write(line.getString() + "\n");
+                ref.incCounter();
                 BufferedReader reader = map.remove(line);
                 String nextLine = reader.readLine();
                 if (nextLine != null) {
@@ -119,6 +163,7 @@ public class ExternalSort {
                     sorted.add(sw);
                 }
             }
+            System.out.println("written lines count = " + ref.getCounter());
         } finally {
             for (BufferedReader reader : readers) {
                 try {
@@ -136,13 +181,13 @@ public class ExternalSort {
 
 
     /**
-     * Делегируем поведение компаратора в компаратор класса ExternalSort.
-     * Делегирование для того, чтобы иметь возможность сортировать класс-оболочку StringWrapper.
+     * Делегируем поведение компаратора в компаратор класса ExternalSort для того,
+     * чтобы иметь возможность сортировать класс-оболочку StringWrapper.
      */
     private class ComparatorDelegate implements Comparator<StringWrapper> {
         @Override
         public int compare(StringWrapper o1, StringWrapper o2) {
-            return strCompr.compare(o1.string, o2.string);
+            return stringCpr.compare(o1.string, o2.string);
         }
     }
 
@@ -152,6 +197,10 @@ public class ExternalSort {
      */
     private class StringWrapper implements Comparable<StringWrapper> {
         private final String string;
+
+        public String getString() {
+            return string;
+        }
 
         public StringWrapper(String str) {
             this.string = str;

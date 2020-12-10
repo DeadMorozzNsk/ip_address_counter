@@ -1,9 +1,6 @@
 package org.ecwid.ipcounter;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Random;
@@ -66,22 +63,19 @@ public class FileAnalyzer {
                     file.createNewFile() ? (msg += "success!") : (msg += "failed!")
             );
         }
-        try (FileOutputStream out = new FileOutputStream(filePath)) {
-            Random random = new Random();
-            for (long i = 0L; i < count; i++) {
-                String ipAddress = "";
-                for (int j = 0; j < 4; j++) {
-                    ipAddress = j == 3 ? (ipAddress + getRandomInt(random) + "\n")
-                            : (ipAddress + getRandomInt(random) + ".");
-                }
-                char[] ch = ipAddress.toCharArray();
-                byte[] arr = new byte[ch.length];
-                for (int k = 0; k < ch.length; k++) {
-                    arr[k] = (byte) ch[k];
-                }
-                out.write(arr);
+        BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(
+                        new FileOutputStream(filePath)), 100 * 1024 * 1024);
+        Random random = new Random();
+        for (long i = 0L; i < count; i++) {
+            String ipAddress = "";
+            for (int j = 0; j < 4; j++) {
+                ipAddress = j == 3 ? (ipAddress + getRandomInt(random) + "\n")
+                        : (ipAddress + getRandomInt(random) + ".");
             }
+            writer.write(ipAddress);
         }
+        writer.close();
 
     }
 
@@ -197,8 +191,9 @@ public class FileAnalyzer {
     /**
      * Подсчитывает количество уникальных строк в текстовом файле с помощью внешней сортировки
      * и последующего обхода всего файла.
+     *
      * @param tempDirPath путь к директории, куда будут записываться временные файлы
-     * @param targetFile путь к файлу-результату сортировки
+     * @param targetFile  путь к файлу-результату сортировки
      * @throws IOException ошибка ввода/вывода
      */
     public void countByExternalSort(String tempDirPath, String targetFile) throws IOException {
