@@ -63,7 +63,7 @@ public class EfficiencyTest {
         try (FileInputStream in = new FileInputStream(sourceFilePath);
              FileOutputStream out = new FileOutputStream(mergedFilePath)){
             externalSort.splitParts(in);
-            externalSort.mergeParts(out);
+            externalSort.mergeParts();
             System.out.println("time passed = " + (System.currentTimeMillis() - t));
             FileAnalyzer fileAnalyzer = new FileAnalyzer(mergedFilePath);
             fileAnalyzer.countIpAddressesFromFile();

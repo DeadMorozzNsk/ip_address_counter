@@ -110,11 +110,12 @@ public class ExternalSort {
      * Читает временные файлы, созданные методом splitParts и соединяет их в один файл,
      * а временные файлы удаляет.
      *
-     * @param out исходящий поток
      * @throws IOException ошибка ввода/вывода
      */
-    public void mergeParts(OutputStream out) throws IOException {
+    public void mergeParts() throws IOException {
         DaemonLogger ref = new DaemonLogger();
+        long uniqueLines = 0L;
+        String currentAddress = "";
         synchronized (ref) { /* daemon - поток для фоновой проверки количества обработанных строк */
             Thread progressMonitor = new Thread(() -> {
                 while (true) {
@@ -134,7 +135,7 @@ public class ExternalSort {
         List<BufferedReader> readers = new ArrayList<>();
         ComparatorDelegate delegate = new ComparatorDelegate();
 
-        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out))) {
+        try {
             for (int i = 0; i < outputFiles.size(); i++) {
                 BufferedReader reader = new BufferedReader(new FileReader(outputFiles.get(i)));
                 readers.add(reader);
@@ -147,7 +148,12 @@ public class ExternalSort {
             while (map.size() > 0) {
                 sorted.sort(delegate);
                 StringWrapper line = sorted.remove(0);
-                writer.write(line.getString() + "\n");
+                if (ref.getCounter() == 0)
+                    currentAddress = line.getString();
+                if (!line.getString().equals(currentAddress)) {
+                    currentAddress = line.getString();
+                    uniqueLines++;
+                }
                 ref.incCounter();
                 BufferedReader reader = map.remove(line);
                 String nextLine = reader.readLine();
@@ -158,7 +164,8 @@ public class ExternalSort {
                 }
             }
             ref.setExpired(true);
-            System.out.println("written lines count = " + ref.getCounter());
+            System.out.println("total lines count = " + ref.getCounter());
+            System.out.println("Unique ip addresses = " + uniqueLines);
         } finally {
             for (BufferedReader reader : readers) {
                 try {

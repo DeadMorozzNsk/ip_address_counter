@@ -199,25 +199,9 @@ public class FileAnalyzer {
     public void countByExternalSort(String tempDirPath, String targetFile) throws IOException {
         ExternalSort externalSort = new ExternalSort(tempDirPath);
         externalSort.setMaximumPartSize(75);
-        try (FileInputStream in = new FileInputStream(getFilePath());
-             FileOutputStream out = new FileOutputStream(targetFile)) {
+        try (FileInputStream in = new FileInputStream(getFilePath())) {
             externalSort.splitParts(in);
-            externalSort.mergeParts(out);
-
-            AtomicReference<String> storedLine = new AtomicReference<>();
-            AtomicLong ipAddressCount = new AtomicLong();
-            Files.lines(Paths.get(targetFile))
-                    .forEach(line -> {
-                        if (ipAddressCount.get() == 0) {
-                            storedLine.set(line);
-                            ipAddressCount.getAndIncrement();
-                        }
-                        if (!line.equals(storedLine.get())) {
-                            ipAddressCount.getAndIncrement();
-                            storedLine.set(line);
-                        }
-                    });
-            System.out.println("Unique ip address count = " + ipAddressCount.get());
+            externalSort.mergeParts();
         }
     }
 
