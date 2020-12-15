@@ -4,6 +4,7 @@ import java.io.*;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -66,7 +67,12 @@ public class ExternalSort {
             }
             sortListAndSendToOutput(lines, "final");
         }
-        executorService.shutdown();
+        try {
+            executorService.awaitTermination(5L, TimeUnit.SECONDS);
+            executorService.shutdown();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -108,25 +114,12 @@ public class ExternalSort {
      * @throws IOException ошибка ввода/вывода
      */
     public void mergeParts(OutputStream out) throws IOException {
-        var ref = new Object() {
-            private long counter = 0L;
-
-            public long getCounter() {
-                return counter;
-            }
-
-            public void setCounter(long counter) {
-                this.counter = counter;
-            }
-
-            public void incCounter() {
-                this.counter++;
-            }
-        };
-        synchronized (ref) {
+        DaemonLogger ref = new DaemonLogger();
+        synchronized (ref) { /* daemon - поток для фоновой проверки количества обработанных строк */
             Thread progressMonitor = new Thread(() -> {
                 while (true) {
                     System.out.println("Strings processed = " + ref.getCounter());
+                    if (ref.isExpired()) break;
                     try {
                         Thread.sleep(3000);
                     } catch (InterruptedException e) {
@@ -140,6 +133,7 @@ public class ExternalSort {
         Map<StringWrapper, BufferedReader> map = new HashMap<>();
         List<BufferedReader> readers = new ArrayList<>();
         ComparatorDelegate delegate = new ComparatorDelegate();
+
         try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(out))) {
             for (int i = 0; i < outputFiles.size(); i++) {
                 BufferedReader reader = new BufferedReader(new FileReader(outputFiles.get(i)));
@@ -163,6 +157,7 @@ public class ExternalSort {
                     sorted.add(sw);
                 }
             }
+            ref.setExpired(true);
             System.out.println("written lines count = " + ref.getCounter());
         } finally {
             for (BufferedReader reader : readers) {
@@ -209,6 +204,31 @@ public class ExternalSort {
         @Override
         public int compareTo(StringWrapper stringWrapper) {
             return string.compareTo(stringWrapper.string);
+        }
+    }
+
+    /**
+     * класс для хранения информации о количестве итераций какого-либо
+     * процесса. Содержит счетчик и маркер для остановки daemon-потока.
+     */
+    private static class DaemonLogger {
+        private long counter = 0L;
+        private boolean expired = false;
+
+        public long getCounter() {
+            return counter;
+        }
+
+        public void incCounter() {
+            this.counter++;
+        }
+
+        public boolean isExpired() {
+            return expired;
+        }
+
+        public void setExpired(boolean expired) {
+            this.expired = expired;
         }
     }
 
